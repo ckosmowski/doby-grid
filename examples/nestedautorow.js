@@ -103,6 +103,8 @@ define(['dobygrid'], function (DobyGrid) {
 										collapsed: true
 									}]);
 									
+									// Am i supposed to repeat everything here that
+									// i just defined in the last few lines?
 									data.grid.setItem(row.id, {
 									    height: 250,
 									    data: data
