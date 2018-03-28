@@ -2148,15 +2148,15 @@ describe("Methods and Data Manipulation", function () {
 			grid.appendTo(fixture);
 
 			// Get column widths
-			var widths = grid.$el.find('.doby-grid-header-column').map(function () {
-				return $(this).width();
+			var widths = grid.$el.find('.doby-grid-header-column').toArray().map(function (el) {
+				return $(el).width();
 			});
 
 			// Restore current state
 			grid.restoreState(grid.getState());
 
-			var newWidths = grid.$el.find('.doby-grid-header-column').map(function () {
-				return $(this).width();
+			var newWidths = grid.$el.find('.doby-grid-header-column').toArray().map(function (el) {
+				return $(el).width();
 			});
 
 			// Widths should stay the same

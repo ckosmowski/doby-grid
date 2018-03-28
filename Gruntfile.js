@@ -43,15 +43,16 @@ module.exports = function (grunt) {
 				specs: 'tests/*.js',
 				styles: 'build/latest/<%= pkg.name %>.min.css',
 				vendor: [
-					'libs/jquery/dist/jquery.js',
-					'libs/jquery-ui/jquery-ui.js',
-					'libs/jquery.event.drag-drop/event.drag/jquery.event.drag.js',
-					'libs/jquery.simulate/libs/jquery.simulate.js',
-					'libs/FileSaver/FileSaver.js',
-					'libs/underscore/underscore.js',
-                    'libs/backbone/backbone.js',
-					'libs/less/dist/less-1.7.4.js',
-					'libs/jasmine-jquery/lib/jasmine-jquery.js'
+					'node_modules/jquery/dist/jquery.js',
+					'node_modules/jquery-migrate/dist/jquery-migrate.js',					
+					'node_modules/jquery-ui-bundle/jquery-ui.js',
+					'libs/jquery.event.drag.js',
+					'libs/jquery.simulate.js',
+					'node_modules/FileSaver/FileSaver.js',
+					'node_modules/underscore/underscore.js',
+                    'node_modules/backbone/backbone.js',
+					'node_modules/less/dist/less.js',
+					'node_modules/jasmine-jquery/lib/jasmine-jquery.js'
                 ]
 			}
 		},

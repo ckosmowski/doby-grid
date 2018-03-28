@@ -1523,8 +1523,11 @@ var DobyGrid = function (options) {
 		handleHeaderContextMenu,
 		handleHeaderClick,
 		handleKeyDown,
+		handleKeyDownRowBased,
+		handleNavigateKey,
 		handleScroll,
 		handleWindowResize,
+		hasCustomGrouping = false,
 		hasFrozenRows = false,
 		hasGrouping,
 		hasSorting,
@@ -1654,6 +1657,7 @@ var DobyGrid = function (options) {
 		columnSpacing:			1,
 		columnWidth:			80,
 		contextMenu:			'all',
+		cycleRowBasedSelection: false,
 		ctrlSelect:				true,
 		data:					[],
 		dataExtractor:			null,
@@ -1672,6 +1676,7 @@ var DobyGrid = function (options) {
 		fullWidthRows:			true,
 		groupable:				true,
 		idProperty:				"id",
+			infinitePageSize:		35,
 		keepNullsAtBottom:		true,
 		keyboardNavigation:		true,
 		lineHeightOffset:		-1,
@@ -1680,6 +1685,7 @@ var DobyGrid = function (options) {
 		menuExtensionsPosition:	"bottom",
 		minColumnWidth:			"",
 		multiColumnSort:		true,
+		paginationStyle:		"default",
 		quickFilter:			false,
 		remoteScrollTime:		200,
 		resizableColumns:		true,
@@ -1694,9 +1700,11 @@ var DobyGrid = function (options) {
 		scrollLoader:			null,
 		selectable:				true,
 		selectedClass:			"selected",
+			selectOnNavigate:		false,
 		shiftSelect:			true,
 		showGutters:			false,
 		showHeader:				true,
+			showSortIndicator:		true,
 		stickyFocus:			false,
 		stickyGroupRows:		false,
 		tooltipType:			"popup",
@@ -1897,6 +1905,12 @@ var DobyGrid = function (options) {
 			// Use the column_id shortcut to extend the options
 			options.column_id = column_id;
 
+			if (hasCustomGrouping) {
+				// Disable custom grouping
+				hasCustomGrouping = false;
+				this.collection.groups = [];
+			}
+
 			// Add to grouping
 			this.collection.groups.push(options);
 
@@ -1934,7 +1948,6 @@ var DobyGrid = function (options) {
 			measureCellPadding();
 			if (this.options.showHeader) disableSelection($headers);
 			renderColumnHeaders();
-			setupColumnSort();
 			setFrozenOptions();
 			setScroller();
 			createCssRules();
@@ -2000,10 +2013,12 @@ var DobyGrid = function (options) {
 			$(document.body).on("click contextmenu", handleBodyClick);
 
 			$canvas
-				.on("keydown", handleKeyDown)
+				.on("keydown", self.options.rowBasedSelection ? handleKeyDownRowBased : handleKeyDown)
 				.on("click", handleClick)
 				.on("dblclick", handleDblClick)
 				.on("contextmenu", handleContextMenu);
+
+			setupColumnSort();
 
 			// Pass through common mouseevents
 			var evs = [
@@ -2028,7 +2043,7 @@ var DobyGrid = function (options) {
 
 				// Focus on the canvas when the mouse is in it.
 				// Only as long as the Quick Filter isn't focused.
-				if (event.type == 'mouseenter' && self.options.canvasFocus) {
+					if (event.type == 'mouseup' && self.options.canvasFocus) {
 					var ae = document.activeElement;
 					if (ae != this && !$(this).has($(ae)).length && (
 						(self.options.quickFilter && !$(ae).closest('.' + CLS.headerfiltercell).length) ||
@@ -2037,13 +2052,18 @@ var DobyGrid = function (options) {
 
 						// Prevent page from scrolling when the grid is focused.
 						// Remember previous scroll position.
-						var prevScroll = [window.scrollX, window.scrollY];
-
+						var prevScroll = [$viewport.scrollLeft(), $viewport.scrollTop()];
 						// This will un-necessarily scroll the page
 						$(this).focus();
 
 						// Restore scroll
-						window.scrollTo(prevScroll[0], prevScroll[1]);
+						if ($viewport.scrollLeft() != prevScroll[0]) {
+							$viewport.scrollLeft(prevScroll[0]);
+						}
+
+						if ($viewport.scrollTop() != prevScroll[1]) {
+							$viewport.scrollTop(prevScroll[1]);
+						}
 					}
 				}
 
@@ -3192,16 +3212,15 @@ var DobyGrid = function (options) {
 	 *
 	 * @returns {object}
 	 */
-	createGroupingObject = function (grouping) {
+	createGroupingObject = function (grouping, custom) {
 		if (!grouping) throw new Error("Unable to create group because grouping object is missing.");
 
-		if (grouping.column_id === undefined) throw new Error("Unable to create grouping object because 'column_id' is missing.");
+		if (!custom && grouping.column_id === undefined) throw new Error("Unable to create grouping object because 'column_id' is missing.");
 
 		var column = getColumnById(grouping.column_id);
 
 		var result = $.extend({
 			collapsed: true,	// All groups start off being collapsed
-			column_id: column.id,
 			comparator: function (a, b) {
 				// Null groups always on the bottom
 				if (self.options.keepNullsAtBottom) {
@@ -3221,11 +3240,15 @@ var DobyGrid = function (options) {
 				var sorted = naturalSort(a.value, b.value);
 				return asc ? sorted : -sorted;
 			},
-			getter: function (item) {
+			getter: !custom && function (item) {
 				return getDataItemValueForColumn(item, column);
 			},
 			rows: []
 		}, grouping);
+
+		if (!custom) {
+			result.column_id = column.id;
+		}
 
 		return result;
 	};
@@ -3306,7 +3329,7 @@ var DobyGrid = function (options) {
 
 			// If we have normal data - set it now
 			if (!grid.fetcher && grid.options.data) {
-				this.reset(grid.options.data);
+				self.reset(grid.options.data);
 			}
 
 			return this;
@@ -3647,6 +3670,22 @@ var DobyGrid = function (options) {
 					}
 				}
 
+				// If we have custom grouping, just add the groups provided
+				if (hasCustomGrouping) {
+					var cm_g;
+					for (var o = 0, clength = self.groups[level].groups.length; o < clength; o++) {
+						cm_g = self.groups[level].groups[o];
+
+						// For each parent, walk up the hierarchy of group parents and
+						// confirm that this sub-group belongs there
+						if (!checkRemoteGroup(level, cm_g, parentGroup)) continue;
+
+						group = createGroupObject(cm_g);
+						groups.push(group);
+						groupsByVal[group.value] = group;
+					}
+				}
+
 				// Loop through the rows in the group and create group header rows as needed
 				for (i = 0, l = rows.length; i < l; i++) {
 					r = rows[i];
@@ -3906,7 +3945,12 @@ var DobyGrid = function (options) {
 			}
 
 			var result = cache.modelsById[id];
-			return result ? [this.items.indexOf(result), result] : null;
+				var idx = this.items.indexOf(result);
+				if (result && result.id === obj.id && idx < 0) {
+					result = null;
+					delete cache.modelsById[id];
+				}
+				return result ? [idx, result] : null;
 		};
 
 
@@ -4274,7 +4318,7 @@ var DobyGrid = function (options) {
 			// Do not create groups when the grid is empty.
 			//
 			var groups = [];
-			if (self.groups.length && self.items.length) {
+			if (self.groups.length && (self.items.length || hasCustomGrouping)) {
 
 				extractGroups(newRows, null, function (result) {
 					groups = result;
@@ -4435,7 +4479,7 @@ var DobyGrid = function (options) {
 		 * @param	{array}		options		- List of grouping objects
 		 *
 		 */
-		this.setGrouping = function (options) {
+		this.setGrouping = function (options, custom) {
 			// Is grouping enabled
 			if (!grid.options.groupable) throw new Error('Cannot execute "setGrouping" because "options.groupable" is disabled.');
 
@@ -4460,10 +4504,17 @@ var DobyGrid = function (options) {
 
 				col = getColumnById(options[i].column_id);
 
-				if (col === undefined) {
+				// Don't care for a column id, if we're setting a custom grouping
+				if (!custom && col === undefined) {
 					throw new Error('Cannot add grouping for column "' + options[i].column_id + '" because no such column could be found.');
-				} else if (col.groupable === false) {
+				} else if (!custom && col.groupable === false) {
 					throw new Error('Cannot add grouping for column "' + col.id + '" because "options.groupable" is disabled for that column.');
+				}
+
+				if (custom && !options[i].getter) {
+					throw new Error('Cannot add custom grouping: a getter function must be provided for each grouping option');
+				} else if (custom && !options[i].formatter) {
+					throw new Error('Cannot add custom grouping: a formatter function must be provided for each grouping option');
 				}
 
 				// If there are custom heights set for groupings - enable variable row height
@@ -4477,7 +4528,7 @@ var DobyGrid = function (options) {
 				if (!toggledGroupsByLevel[i]) toggledGroupsByLevel[i] = {};
 
 				// Extend using a default grouping object and add to groups
-				groups.push(createGroupingObject(options[i]));
+				groups.push(createGroupingObject(options[i], custom));
 			}
 
 			// Consider groupings changed if the number of groupings changed
@@ -4788,7 +4839,7 @@ var DobyGrid = function (options) {
 		deselectCells(rowIndex);
 		var rowNode = cache.nodes[rowIndex] ? cache.nodes[rowIndex].rowNode : null;
 		if (rowNode) {
-			$(rowNode).addClass(self.options.selectedClass);
+			$(rowNode).removeClass(self.options.selectedClass);
 		}
 	};
 
@@ -4900,6 +4951,16 @@ var DobyGrid = function (options) {
 		}
 	};
 
+	/**
+	 * Edit the currently active cell (if the table, the column, and the item is editable)
+	 * @method editActiveCell
+	 * @memberof DobyGrid
+	 *
+	 * @param	{function}	editor		- Editor factory to use
+	 */
+	this.editActiveCell = function (editor) {
+		makeActiveCellEditable(editor);
+	};
 
 	/**
 	 * Given a set of columns, make sure 'minWidth <= width <= maxWidth
@@ -4939,8 +5000,13 @@ var DobyGrid = function (options) {
 			// the grid correctly refetches the full page of results.
 			self.collection.length = self.collection.remote_length;
 
-			// Refill the collection with placeholders
-			generatePlaceholders();
+				// When using infinite pagination style, no placeholders are needed
+				if (self.options.paginationStyle === "infinite") {
+					self.options.data.reset([]);
+				} else {
+					// Refill the collection with placeholders
+					generatePlaceholders();
+				}
 
 			// Refresh the grid to recalculate the cache for placeholder rows
 			self.collection.refresh();
@@ -6208,7 +6274,7 @@ var DobyGrid = function (options) {
 	 *
 	 * @return {object}
 	 */
-	getRenderedRange = function (viewportTop, viewportLeft) {
+		getRenderedRange = this.getRenderedRange = function (viewportTop, viewportLeft) {
 		var range = getVisibleRange(viewportTop, viewportLeft),
 			buffer,
 			minBuffer = 3;
@@ -6551,7 +6617,7 @@ var DobyGrid = function (options) {
 	 *
 	 * @returns {object}
 	 */
-	getVisibleRange = function (viewportTop, viewportLeft) {
+		getVisibleRange = this.getVisibleRange = function (viewportTop, viewportLeft) {
 		if (viewportTop === undefined || viewportTop === null) viewportTop = scrollTop;
 		if (viewportLeft === undefined || viewportLeft === null) viewportLeft = scrollLeft;
 
@@ -6619,7 +6685,12 @@ var DobyGrid = function (options) {
 			dataLength = getDataLength();
 		while (true) {
 			if (++row >= dataLength) {
-				return null;
+				// In row based selection mode, cycle through rows
+				if (self.options.rowBasedSelection && self.options.cycleRowBasedSelection) {
+					row = 0;
+				} else {
+					return null;
+				}
 			}
 
 			prevCell = cell = 0;
@@ -6811,7 +6882,12 @@ var DobyGrid = function (options) {
 		var prevCell;
 		while (true) {
 			if (--row < 0) {
-				return null;
+				// In row based selection mode, cycle through rows
+				if (self.options.rowBasedSelection && self.options.cycleRowBasedSelection) {
+					row = getDataLength() - 1;
+				} else {
+					return null;
+				}
 			}
 
 			prevCell = cell = 0;
@@ -6888,6 +6964,10 @@ var DobyGrid = function (options) {
 			var isToggler = $(e.target).hasClass(CLS.grouptoggle) || $(e.target).closest('.' + CLS.grouptoggle).length;
 
 			if (isToggler) {
+				self.trigger('groupheaderclick', e, {
+					item: item
+				});
+
 				if (item.collapsed) {
 					self.collection.expandGroup(item[self.options.idProperty]);
 				} else {
@@ -7263,6 +7343,206 @@ var DobyGrid = function (options) {
 
 
 	/**
+		 * Handle the keydown events for the row based selection model.
+		 * @method handleKeyDownRowBased
+		 * @memberof DobyGrid
+		 *
+		 * @param	{object}	event		- Javascript event object
+		*/
+		// TODO: Maybe code duplication between this method and handleKeyDown can further be reduced
+		handleKeyDownRowBased = function (event) {
+
+			if (self.active) {
+				self.trigger('keydown', event, {
+					row: self.active.row,
+					cell: self.active.cell
+				});
+			}
+
+			var handled = event.isImmediatePropagationStopped(),
+				shiftUsed = event.shiftKey;
+
+			var newestRange = self.selection && self.selection[self.selection.length - 1];
+
+			var reselectRow = function (up) {
+				if (! self.options.selectOnNavigate) return;
+				var row = self.active && self.active.row;
+				if (row !== null && typeof row !== "undefined") {
+					deselectCells();
+					if (shiftUsed && newestRange) {
+						if (row < newestRange.fromRow) {
+							self.selectRows(row, newestRange.toRow, true);
+						} else if (row > newestRange.toRow) {
+							self.selectRows(newestRange.fromRow, row, true);
+						} else {
+							if (up) {
+								self.selectRows(newestRange.fromRow, row, true);
+							} else {
+								self.selectRows(row, newestRange.toRow, true);
+							}
+						}
+					} else {
+						self.selectRows(row, row, true);
+					}
+				} else {
+					self.selectRows(0, 0, true);
+					setActiveCellInternal(getCellNode(0, 0), false);
+				}
+			};
+
+			this._event = event;
+
+			switch (event.which) {
+			// Down arrow
+			case 40 :
+				handled = handleNavigateKey(function () {
+
+					// don't naviagte in cycle mode if shift is used
+					if (shiftUsed && self.options.cycleRowBasedSelection && (newestRange.toRow >= getDataLength() - 1)) {
+						return true;
+					}
+
+					navigate("down");
+					reselectRow();
+					return true;
+				});
+				break;
+			// Up Arrow
+			case 38 :
+				handled = handleNavigateKey(function () {
+
+					// don't naviagte in cycle mode if shift is used
+					if (shiftUsed && self.options.cycleRowBasedSelection && (newestRange.fromRow <= 0)) {
+						return true;
+					}
+
+					navigate("up");
+					reselectRow(true);
+					return true;
+				});
+				break;
+			// TAB
+			case 9 :
+				handled = handleNavigateKey(function () {
+					if (shiftUsed) {
+						shiftUsed = false;
+						navigate("up");
+						reselectRow(true);
+					} else {
+						navigate("down");
+						reselectRow();
+					}
+					return true;
+				});
+				break;
+			case 13 :
+				if (self.options.editable && self.currentEditor) {
+					handled = commitCurrentEdit(function (result) {
+						if (result) {
+							navigate("down");
+							reselectRow();
+						}
+					});
+				}
+				break;
+			// Left arrow
+			case 37 :
+				if (!self.options.editable || !self.currentEditor) {
+					handled = handleNavigateKey(function () {
+						return navigate("left");
+					});
+				}
+				break;
+			// Right Arrow
+			case 39 :
+				if (!self.options.editable || !self.currentEditor) {
+					handled = handleNavigateKey(function () {
+						return navigate("right");
+					});
+				}
+				break;
+			// Page Down
+			case 34 :
+				scrollPage(1);
+				handled = true;
+				break;
+			// Page Up
+			case 33 :
+				scrollPage(-1);
+				handled = true;
+				break;
+			// Home
+			case 36 :
+				if (!self.options.editable || !self.currentEditor) {
+					self.scrollToRow(0);
+					handled = true;
+				}
+				break;
+			// END
+			case 35 :
+				if (!self.options.editable || !self.currentEditor) {
+					self.scrollToRow(self.collection.items.length - 1);
+					handled = true;
+				}
+				break;
+			// ESC
+			case 27 :
+				if (self.options.editable && self.currentEditor) {
+					self.currentEditor.cancel();
+					makeActiveCellNormal();
+
+					// Return focus back to the canvas
+					$canvas.focus();
+					handled = true;
+				} else if (self.selection) {
+					// If something is selected remove the selection range
+					deselectCells();
+				} else if (self.active) {
+					// If something is active - remove the active state
+					self.activate();
+				}
+				break;
+			}
+
+			this._event = null;
+
+			if (handled) {
+				// the event has been handled so don't let parent element
+				// (bubbling/propagation) or browser (default) handle it
+				event.stopPropagation();
+				event.preventDefault();
+
+				try {
+					// prevent default behaviour for special keys in IE browsers (F3, F5, etc.)
+					event.originalEvent.which = 0;
+				}
+				// ignore exceptions - setting the original event's keycode
+				// throws access denied exception for "Ctrl" (hitting control key only,
+				// nothing else), "Shift" (maybe others)
+				catch (error) {}
+			}
+		};
+
+		/**
+		* Helper function to handle events which involve cell navigation
+		* @method handleNavigateKey
+		* @memberof DobyGrid
+		*
+		* @param {function} callback	- function to execute when edit has been commited
+		*/
+		// TODO this function can also reduce code duplication in handleKeyDown function
+		handleNavigateKey = function (callback) {
+			if (self.options.editable && self.currentEditor) {
+				return commitCurrentEdit(function (result) {
+					if (result) callback();
+				});
+			} else {
+				return callback();
+			}
+		};
+
+
+		/**
 	 * Handles the offsets and event that need to fire when a user is scrolling
 	 * @method handleScroll
 	 * @memberof DobyGrid
@@ -7493,11 +7773,11 @@ var DobyGrid = function (options) {
 			$overlay = null;
 
 			// Reset canvas width
-			updateCanvasWidth();
-
-			// Redraw grid
-			invalidate();
+			//updateCanvasWidth();
 		}
+
+		// Redraw grid
+		invalidate();
 
 		return this;
 	};
@@ -7718,6 +7998,7 @@ var DobyGrid = function (options) {
 	// up common Collection events to the grid.
 	//
 	bindToCollection = function () {
+			self.stopListening(self.options.data);
 		self.listenTo(self.options.data, 'add', function (model, collection, options) {
 			// If grid is destroyed by the time we get here - leave
 			if (self.destroyed) return;
@@ -8121,6 +8402,10 @@ var DobyGrid = function (options) {
 	 * @private
 	 */
 	remoteAllLoaded = function () {
+
+			// If the pagination style is infinite we won't ever load all items
+			if (self.options.paginationStyle === "infinite") return false;
+
 		// Do we have any placeholders?
 		for (var i = 0, l = self.collection.items.length; i < l; i++) {
 			if (self.collection.items[i].__placeholder) {
@@ -8152,6 +8437,19 @@ var DobyGrid = function (options) {
 
 		var req = function () {
 			var	dfd = new $.Deferred();
+
+			if (!self.fetcher.count) {
+				if (self.options.paginationStyle !== "infinite") {
+					throw new Error("You must either specify a valid count() method in your fetcher or use a different pagination style. (see grid.options.paginationStyle)");
+				}
+			}
+
+			if (self.options.paginationStyle === "infinite") {
+				updateRowCount();
+				self.collection.refresh();
+				callback();
+				return;
+			}
 
 			self.fetcher.count(options, function (result) {
 				// Grid was destroyed before the callback finished
@@ -8212,6 +8510,7 @@ var DobyGrid = function (options) {
 	 * @private
 	 */
 	remoteFetch = function () {
+
 		// If scrolling fast, abort pending requests
 		var silentRemoteLoaded = true;
 		if (self.fetcher.request && typeof self.fetcher.request.abort === 'function') {
@@ -8246,7 +8545,8 @@ var DobyGrid = function (options) {
 			var dfd = new $.Deferred(),
 				vp = getVisibleRange(),
 				from = vp.top,
-				to = vp.bottom;
+				to = vp.bottom,
+				count = to - from;
 
 			// Decrease likelihood that user sees empty rows before the results
 			// load by prefetching extra ones.
@@ -8256,15 +8556,19 @@ var DobyGrid = function (options) {
 				to += self.options.rowsToPrefetch;
 			}
 
-			// Don't attempt to fetch more results than there are
 			if (from < 0) from = 0;
-			if (self.collection.length > 0) to = Math.min(to, self.collection.length - 1);
+
+			if (self.options.paginationStyle !== "infinite") {
+				// Don't attempt to fetch more results than there are
+				if (self.collection.length > 0) to = Math.min(to, self.collection.length - 1);
+			}
 
 			// If there are groups - we need to scan from the very top to ensure we calculate
 			// the correct data offsets.
 			var start = self.collection.groups.length ? 0 : from,
 				newFrom,
 				newTo,
+				newLimit,
 				r,
 				realRowOffset = 0,
 				nonDataOffset = 0,
@@ -8339,6 +8643,15 @@ var DobyGrid = function (options) {
 			}
 
 			var oldvariableRowHeight;
+			newLimit = newTo - newFrom + 1;
+
+			if (self.options.paginationStyle === "infinite") {
+				if (self.options.infinitePageSize) {
+					newLimit = Math.max(newLimit, self.options.infinitePageSize);
+				} else {
+					newLimit = count + 1;
+				}
+			}
 
 			// Determine if rows to load are already visible by checking for
 			// overlap between we're fetching and current visible ones.
@@ -8348,7 +8661,7 @@ var DobyGrid = function (options) {
 			remoteFetcher({
 				columns: cache.activeColumns,
 				filters: typeof(self.collection.filter) != 'function' ? self.collection.filter : null,
-				limit: newTo - newFrom + 1,
+				limit: newLimit,
 				offset: newFrom,
 				order: self.sorting
 			}, function (results) {
@@ -8383,6 +8696,10 @@ var DobyGrid = function (options) {
 
 				// Fire loaded function to process the changes
 				remoteLoaded(topRow, bottomRow);
+
+				if (self.options.paginationStyle === "infinite") {
+					self.collection.refresh();
+				}
 
 				// If variableRowHeight mode got enabled,
 				// we need to check to see if the viewport got filled. It's possible that the rows
@@ -8952,7 +9269,7 @@ var DobyGrid = function (options) {
 			html.push('>');
 			html.push('<span class="' + CLS.columnname + '">' + column.name + '</span>');
 
-			if (column.sortable) {
+				if (column.sortable && self.options.showSortIndicator) {
 				html.push('<span class="' + CLS.sortindicator + '"></span>');
 			}
 
@@ -10066,6 +10383,26 @@ var DobyGrid = function (options) {
 		}
 	};
 
+	/**
+	 * Sets a custom grouping for the grid data view.
+	 * @method setCustomGrouping
+	 * @memberof DobyGrid
+	 *
+	 * @param	{array}		options		- List of grouping objects
+	 *
+	 * @returns {object}
+	 */
+	this.setCustomGrouping = function (options) {
+
+		if (!options || !options.length) {
+			throw new Error('There must be at least one grouping option to set custom grouping');
+		}
+
+		hasCustomGrouping = true;
+		this.collection.setGrouping(options, true);
+
+		return this;
+	};
 
 	/**
 	 * Validates and sets up options for frozen columns and rows
@@ -10104,6 +10441,7 @@ var DobyGrid = function (options) {
 	 * @returns {object}
 	 */
 	this.setGrouping = function (options) {
+		hasCustomGrouping = false;
 		this.collection.setGrouping(options);
 		return this;
 	};
@@ -10198,7 +10536,7 @@ var DobyGrid = function (options) {
 		if ('autoColumnWidth' in options) {
 			// Also make sure that the right resize handles are drawn
 			setupColumnResize();
-			autosizeColumns();
+			options.autoColumnWidth && autosizeColumns();
 
 			// Fire column resize event
 			self.trigger('columnresize', this._event, {});
@@ -10564,7 +10902,7 @@ var DobyGrid = function (options) {
 	setupColumnSort = function () {
 		if (!self.options.showHeader) return;
 
-		$headers.click(function (e) {
+		$headerScroller.click(function (e) {
 			self._event = e;
 
 			// If clicking on drag handle - stop
@@ -10638,6 +10976,7 @@ var DobyGrid = function (options) {
 		// First, clear the viewport
 		invalidateAllRows();
 
+		/*
 		// Scroll all the way up and remove scrollbars
 		if ($canvas) {
 			h = null;			// Resets the current canvas height cache
@@ -10645,7 +10984,7 @@ var DobyGrid = function (options) {
 
 			$canvas.height('100%').width('100%');
 			scrollTo(0);
-		}
+		}*/
 
 		// Create an overlay
 		if ($overlay && $overlay.length) removeElement($overlay[0]);
@@ -10982,7 +11321,7 @@ var DobyGrid = function (options) {
 	 * @private
 	 */
 	styleSortColumns = function () {
-		if (!self.options.showHeader) return;
+	        if (!self.options.showHeader || !self.options.showSortIndicator) return;
 
 		var headerColumnEls = $headers.children();
 		headerColumnEls
@@ -11597,6 +11936,9 @@ var DobyGrid = function (options) {
 						}
 					}
 				}
+				if (Object.keys(removedRowHash).length === cache.activeColumns.length){
+					$(cache.nodes[row].rowNode).removeClass(self.options.selectedClass);
+				}
 			}
 
 			if (addedRowHash) {
@@ -11776,7 +12118,7 @@ var DobyGrid = function (options) {
 			scrollTo(scrollTop + offset);
 		} else {
 			// scroll to bottom
-			scrollTo(th - viewportH);
+			scrollTo(th - viewportH + (viewportHasHScroll ? window.scrollbarDimensions.height : 0));
 		}
 
 		// If autoColumnWidth is enabled and the scrollbar has disappeared - we need to resize
