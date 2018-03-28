@@ -1,5 +1,5 @@
 // doby-grid.js
-// (c) 2014 Evgueni Naverniouk, Globex Designs, Inc.
+// (c) 2015 Evgueni Naverniouk, Globex Designs, Inc.
 // Doby may be freely distributed under the MIT license.
 // For all details and documentation:
 // https://github.com/globexdesigns/doby-grid
@@ -19,6 +19,7 @@ if (!Backbone) throw new Error('Unable to load DobyGrid because Backbone, which 
 
 
 var Aggregate			= require('./classes/Aggregate'),
+	CellRange			= require('./classes/CellRange'),
 	CellRangeDecorator	= require('./classes/CellRangeDecorator'),
 	DefaultEditor		= require('./classes/DefaultEditor'),
 	DefaultFormatter	= require('./classes/DefaultFormatter'),
@@ -26,7 +27,6 @@ var Aggregate			= require('./classes/Aggregate'),
 	Group				= require('./classes/Group'),
 	NonDataItem 		= require('./classes/NonDataItem'),
 	Placeholder			= require('./classes/Placeholder'),
-	Range				= require('./classes/Range'),
 	Tooltip				= require('./classes/Tooltip'),
 
 	CLS					= require('./utils/classes'),
@@ -62,6 +62,7 @@ var DobyGrid = function (options) {
 	// Private
 	var self = this,
 		$canvas,
+		$gutters,
 		$headers,
 		$headerL,
 		$headerR,
@@ -366,6 +367,7 @@ var DobyGrid = function (options) {
 		selectedClass:			"selected",
 			selectOnNavigate:		false,
 		shiftSelect:			true,
+		showGutters:			false,
 		showHeader:				true,
 			showSortIndicator:		true,
 		stickyFocus:			false,
@@ -1074,7 +1076,7 @@ var DobyGrid = function (options) {
 					start: start
 				};
 
-				return decorator.show(new Range({fromRow: start.row, fromCell: start.cell}, self));
+				return decorator.show(new CellRange({fromRow: start.row, fromCell: start.cell}, self));
 			})
 			.on('drag', {not: handleSelector}, function (event, dd) {
 				if (!_dragging) return;
@@ -1099,7 +1101,7 @@ var DobyGrid = function (options) {
 				if (!self.canCellBeSelected(end.row, end.cell)) return;
 
 				dd._range.end = end;
-				decorator.show(new Range({fromRow: dd._range.start.row, fromCell: dd._range.start.cell, toRow: end.row, toCell: end.cell}, self));
+				decorator.show(new CellRange({fromRow: dd._range.start.row, fromCell: dd._range.start.cell, toRow: end.row, toCell: end.cell}, self));
 
 				// Set the active cell as you drag. This is default spreadsheet behavior.
 				if (self.options.activateSelection && canCellBeActive(end.row, end.cell)) {
@@ -1454,8 +1456,8 @@ var DobyGrid = function (options) {
 		while ((processedRow = processedRows.pop()) !== null && processedRow !== undefined) {
 			cacheEntry = cache.nodes[processedRow];
 			while ((columnIdx = cacheEntry.cellRenderQueue.pop()) !== null && columnIdx !== undefined) {
-				node = x.lastChild;
-				cacheEntry.rowNode.appendChild(node);
+				node = $(x.lastChild);
+				cacheEntry.rowNode.append(node);
 				cacheEntry.cellNodesByColumnIdx[columnIdx] = node;
 			}
 		}
@@ -1498,7 +1500,7 @@ var DobyGrid = function (options) {
 
 		var cellToRemove;
 		while (((cellToRemove = cellsToRemove.pop()) !== null && cellToRemove !== undefined) && cellToRemove) {
-			cacheEntry.rowNode.removeChild(cacheEntry.cellNodesByColumnIdx[cellToRemove]);
+			cacheEntry.cellNodesByColumnIdx[cellToRemove].remove();
 			delete cacheEntry.cellColSpans[cellToRemove];
 			delete cacheEntry.cellNodesByColumnIdx[cellToRemove];
 			if (cache.postprocess[cache.rows[row].id]) {
@@ -1795,6 +1797,7 @@ var DobyGrid = function (options) {
 		var cclasses = [self.NAME];
 		if (self.options.class) cclasses.push(self.options.class);
 		if (self.options.scrollbarPosition === 'left') cclasses.push(CLS.left);
+		if (self.options.showGutters) cclasses.push(CLS.guttersVisible);
 
 		self.$el = $('<div class="' + cclasses.join(' ') + '" id="' + uid + '"></div>');
 
@@ -1804,6 +1807,7 @@ var DobyGrid = function (options) {
 		$panes = $();
 		$viewport = $();
 		$canvas = $();
+		$gutters = $();
 
 		for (var i = 0, l = panes.length; i < l; i++) {
 			// Generate panes
@@ -1820,6 +1824,16 @@ var DobyGrid = function (options) {
 				(self.options.frozenColumns > -1 && i % 2 === 0 ? ' ' + CLS.autoheight : ''),
 				'"></div>'
 			].join('')).appendTo($p);
+
+			// Create gutters.
+			if (self.options.showGutters) {
+				var gutter = '<div class="' + CLS.gutter + '"></div>';
+				var $gutterLeft = $(gutter).addClass('left').appendTo($v);
+				var $gutterRight = $(gutter).addClass('right').appendTo($v);
+				$gutters = $gutters
+					.add($gutterLeft)
+					.add($gutterRight);
+			}
 
 			// Generate canvas
 			// The tabindex here ensures we can focus on this element
@@ -3207,7 +3221,7 @@ var DobyGrid = function (options) {
 			// When we're dealing with remote groups - we might as well re-generate placeholders
 			// for everything since any data that was previously fetched is no longer in the right
 			// order anyway.
-			if (!fullyLoaded && grid.fetcher) {
+			if (!fullyLoaded && grid.fetcher && initialized) {
 				// Reset collection length to full. This ensures that when groupings are removed,
 				// the grid correctly refetches the full page of results.
 				this.length = this.remote_length;
@@ -3220,7 +3234,9 @@ var DobyGrid = function (options) {
 
 			// If groupings have changed - refetch groupings
 			if (grid.fetcher && !fullyLoaded && grouping_changed) {
-				remoteGroupRefetch();
+				if (initialized) {
+					remoteGroupRefetch();
+				}
 			} else {
 				// Reload the grid with the new grouping.
 				this.refresh();
@@ -3230,7 +3246,7 @@ var DobyGrid = function (options) {
 			// will cause the row sizes to be changed.
 			if (variableRowHeight) resizeCanvas(true);
 
-			if (grid.fetcher && !fullyLoaded && (groups.length === 0 || grid.options.fetchCollapsed)) {
+			if (grid.fetcher && !fullyLoaded && (groups.length === 0 || grid.options.fetchCollapsed && initialized)) {
 				// If all groupings are removed - refetch the data
 				remoteFetch();
 			}
@@ -3310,7 +3326,7 @@ var DobyGrid = function (options) {
 			if (data.rows) {
 				var child_row_idxs = _.chain(data.rows)
 					.map(function (row) {
-						cache.modelsById[id] = row;
+						cache.modelsById[row[grid.options.idProperty]] = row;
 						return cache.indexById[row[grid.options.idProperty]];
 					})
 					.compact()
@@ -3644,7 +3660,7 @@ var DobyGrid = function (options) {
 		var cols = args.sortCols;
 
 		// If remote, and not all data is fetched - sort on server
-		if (self.fetcher && (!remoteAllLoaded() || self.options.forceRemoteSort)) {
+		if (self.fetcher && (!remoteAllLoaded() || self.options.forceRemoteSort) && initialized) {
 			// Reset collection length to full. This ensures that when groupings are removed,
 			// the grid correctly refetches the full page of results.
 			self.collection.length = self.collection.remote_length;
@@ -3727,6 +3743,27 @@ var DobyGrid = function (options) {
 		if (allowed.indexOf(format) < 0) throw new Error('Sorry, "' + format + '" is not a supported format for export.');
 		callback = callback || function () {};
 
+		var htmlTagToEscape = {
+			"&": "&amp;",
+			"<": "&lt;",
+			">": "&gt;",
+			'"': '&quot;',
+			"'": '&#39;',
+			"/": '&#x2F;'
+		};
+
+		function escapeTag (tag) {
+			return htmlTagToEscape[tag] || tag;
+		}
+
+		function escapeVal (val) {
+			// Only escape val if it is really a string!
+			if (typeof val === 'string') {
+				return val.replace(/[&<>"'/]/g, escapeTag);
+			}
+			return val;
+		}
+
 		var processExport = function () {
 			// First collect all the data as an array of arrays
 			var result = [], i, l, row, ii, ll, val;
@@ -3779,6 +3816,7 @@ var DobyGrid = function (options) {
 
 						row.push(['"', val, '"'].join(''));
 					} else if (format === 'html') {
+						val = escapeVal(val);
 						row.push('<td>');
 						row.push(val);
 						row.push('</td>');
@@ -3787,6 +3825,7 @@ var DobyGrid = function (options) {
 				if (format === 'csv') {
 					result.push(row.join(','));
 				} else if (format === 'html') {
+					val = escapeVal(val);
 					row.push('</tr>');
 					result.push(row.join(''));
 				}
@@ -4317,8 +4356,9 @@ var DobyGrid = function (options) {
 			// Do not allow negative values
 			nodecell = nodecell < 0 ? 0 : nodecell;
 
-			var cellNodeArray = cache.nodes[row].cellNodesByColumnIdx[nodecell];
-			return cellNodeArray && cache.nodes[row].cellNodesByColumnIdx[nodecell][0];
+			// Some cells might not yet be rendered and so have no jQuery node.
+			var jqNode = cache.nodes[row].cellNodesByColumnIdx[nodecell];
+			return jqNode ? jqNode[0] : undefined;
 		}
 		return null;
 	};
@@ -6279,6 +6319,13 @@ var DobyGrid = function (options) {
 					scrollTopDelta: scrollTopDelta
 				});
 			}
+
+			// Reposition gutters.
+			if (self.options.showGutters) {
+				$gutters.css('top', scrollTop);
+				$gutters.filter('.left').css('left', scrollLeft);
+				$gutters.filter('.right').css('right', -scrollLeft);
+			}
 		}
 
 		self.trigger('scroll', event, {
@@ -7049,6 +7096,10 @@ var DobyGrid = function (options) {
 			filters: typeof(self.collection.filter) != 'function' ? self.collection.filter : null
 		};
 
+		if (typeof self.fetcher.onLoading === 'function'){
+			self.fetcher.onLoading(false);
+		}
+
 		var req = function () {
 			var	dfd = new $.Deferred();
 
@@ -7097,6 +7148,9 @@ var DobyGrid = function (options) {
 				// the viewport with blanks
 				self.collection.refresh();
 
+				if (typeof self.fetcher.onLoaded === 'function'){
+					self.fetcher.onLoaded();
+				}
 				// Now go and fetch the real items
 				callback();
 
@@ -8508,6 +8562,7 @@ var DobyGrid = function (options) {
 			cacheRows();
 			invalidate();
 		}
+		return this;
 	};
 
 
@@ -8767,7 +8822,7 @@ var DobyGrid = function (options) {
 		}
 
 		// Define a range
-		var range = new Range({fromRow: startRow, fromCell: startCell, toRow: endRow, toCell: endCell}, this),
+		var range = new CellRange({fromRow: startRow, fromCell: startCell, toRow: endRow, toCell: endCell}, this),
 			ranges, i, l, j, k;
 
 		// Remove unselectable rows from the range
