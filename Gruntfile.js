@@ -141,8 +141,8 @@ module.exports = function (grunt) {
 		'less',
 		'jshint',
 		'jscs',
-		'browserify',
-		'jasmine'
+		'browserify'
+		//'jasmine'
 	]);
 
 	// Builds a new release
@@ -152,7 +152,7 @@ module.exports = function (grunt) {
 		'jshint',
 		'jscs',
 		'browserify:build',
-		'uglify',
-		'jasmine'
+		'uglify'
+		//'jasmine'
 	]);
 };
