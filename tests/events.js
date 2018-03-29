@@ -128,7 +128,7 @@ describe("Events", function () {
 
 			grid.setColumns(grid.options.columns);
 		},
-		/*'columnreorder': function (callback) {
+		'columnreorder': function (callback) {
 			var grid = resetGrid(defaultData());
 
 			// Subscribe to event
@@ -143,7 +143,7 @@ describe("Events", function () {
 
 			// Programmatically move the column 0 after column 1
 			cols.eq(0).simulate('drag', {dx: cols.eq(0).width() * 2});
-		},*/
+		},
 		'columnresize': function (callback) {
 			var grid = resetGrid(defaultData());
 

@@ -154,4 +154,10 @@ module.exports = function (grunt) {
 		'uglify',
 		'jasmine'
 	]);
+
+	// Builds a new release
+	grunt.registerTask('forcebuild', [
+		'browserify:build',
+		'uglify'
+	]);
 };

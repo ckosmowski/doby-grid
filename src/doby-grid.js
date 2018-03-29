@@ -1045,6 +1045,8 @@ var DobyGrid = function (options) {
 
 		$canvas
 			.on('draginit', {not: handleSelector}, function (event) {
+				console.log("draginit");
+				console.log(event);
 				// Prevent the grid from cancelling drag'n'drop by default
 				event.stopImmediatePropagation();
 
@@ -1052,6 +1054,8 @@ var DobyGrid = function (options) {
 				clearTextSelection();
 			})
 			.on('dragstart', {not: handleSelector}, function (event, dd) {
+				console.log("dragstart");
+				console.log(event, dd);
 				var cell = getCellFromEvent(event);
 				if (!cell) return;
 
@@ -1079,6 +1083,8 @@ var DobyGrid = function (options) {
 				return decorator.show(new CellRange({fromRow: start.row, fromCell: start.cell}, self));
 			})
 			.on('drag', {not: handleSelector}, function (event, dd) {
+				console.log("drag");
+				console.log(event, dd);
 				if (!_dragging) return;
 
 				event.stopImmediatePropagation();
@@ -1109,6 +1115,8 @@ var DobyGrid = function (options) {
 				}
 			})
 			.on('dragend', {not: handleSelector}, function (event, dd) {
+				console.log("dragend");
+				console.log(event, dd);
 				if (!_dragging) return;
 				_dragging = false;
 
@@ -9400,10 +9408,12 @@ var DobyGrid = function (options) {
 			containment: "parent",
 			cursor: "default",
 			distance: 3,
+			handle: "> *:not(.doby-grid-resizable-handle)",
 			helper: "clone",
 			placeholder: CLS.placeholder + " " + CLS.headercolumn,
 			tolerance: "intersection",
 			start: function (e, ui) {
+				
 				ui.placeholder.width(ui.helper.outerWidth() - headerColumnWidthDiff);
 				$(ui.helper).addClass(CLS.headercolumnactive);
 			},
@@ -9518,9 +9528,12 @@ var DobyGrid = function (options) {
 				cache.activeColumns[i].resizable === false
 			) return;
 
-			$('<div class="' + CLS.handle + '"><span></span></div>')
+			$('<div draggable="true" class="' + CLS.handle + '"><span></span></div>')
 				.appendTo(columnEl)
-				.on('dragstart', function (event) {
+				.on('dragstart', function (jQevent) {
+					console.log('dragstart');
+					var event = jQevent.originalEvent;
+					event.dataTransfer.setData('text/plain', 'This text may be dragged');
 					pageX = event.pageX;
 					$(this).parent().addClass(CLS.headercolumndrag);
 
@@ -9530,17 +9543,25 @@ var DobyGrid = function (options) {
 					// Ensures the leeway has another room to move around
 					prepareLeeway(i, pageX);
 				})
-				.on('drag', function (event) {
+				.on('drag', function (jQevent) {
+					console.log("drag");
+					var event = jQevent.originalEvent;
+					console.log(event);
+					console.log(jQevent);
+					if (event.pageX <= 0) {
+						return;
+					}
 					var delta = Math.min(maxPageX, Math.max(minPageX, event.pageX)) - pageX;
-
+					console.log("VALUES", maxPageX, minPageX, event.pageX, pageX, delta);
 					// Sets the new column widths
 					resizeColumn(i, delta);
 
 					// Save changes
 					applyHeaderAndColumnWidths();
 				})
-				.on('dragend', function () {
-
+				.on('dragend', function (jQevent) {
+					console.log("dragend");
+					var event = jQevent.originalEvent;
 					// This timeout is a hacky solution to prevent the 'click' event for
 					// column sorting from firing when resizing the handle on top of the
 					// header cell. FIXME: There's got to be a better way!
@@ -10886,9 +10907,9 @@ var DobyGrid = function (options) {
 	 */
 	validateOptions = function () {
 		// Validate loaded JavaScript modules against requested options
-		if (self.options.resizableColumns && !$.fn.drag) {
+		/*if (self.options.resizableColumns && !$.fn.drag) {
 			throw new Error('In order to use "resizable", you must ensure the jquery-ui.draggable module is loaded.');
-		}
+		}*/
 		if (self.options.reorderable && !$.fn.sortable) {
 			throw new Error('In order to use "reorderable", you must ensure the jquery-ui.sortable module is loaded.');
 		}
