@@ -424,7 +424,7 @@ module.exports = NonDataItem;
 // For all details and documentation:
 // https://github.com/globexdesigns/doby-grid
 
-var CellRange = require('../src/classes/CellRange');
+var CellRange = require("../src/classes/CellRange.js");
 
 describe("CellRange", function () {
 	"use strict";
@@ -567,4 +567,4 @@ describe("CellRange", function () {
 	});
 });
 
-},{"../src/classes/CellRange":1}]},{},[3]);
+},{"../src/classes/CellRange.js":1}]},{},[3]);

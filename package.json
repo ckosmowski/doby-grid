@@ -1,23 +1,22 @@
 {
 	"name": "doby-grid",
-	"description": "Doby Grid is a <table> on steroids",
-	"version": "1.0.0-beta1",
-	"author": "Globex Designs, Inc.",
-	"homepage": "http://www.dobyjs.com/#grid",
+	"description": "Progress oriented fork of Doby Grid (No mercy for old browsers). Doby Grid is a <table> on steroids",
+	"version": "0.0.1",
+	"author": "Christian Kosmowski",
+	"homepage": "https://ckosmowski.github.io/doby-website/#grid",
 	"license": "MIT",
 	"issues": {
-		"url": "https://github.com/globexdesigns/doby-grid/issues"
+		"url": "https://github.com/ckosmowski/doby-grid/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/globexdesigns/doby-grid.git",
+		"url": "https://github.com/ckosmowski/doby-grid.git",
 		"branch": "master"
 	},
 	"engines": {
 		"node": ">=5.5.0"
 	},
 	"devDependencies": {
-		"bower": "latest",
 		"faker": "^1.0.1",
 		"grunt": "0.4.5",
 		"grunt-browserify": "^4.0.1",
@@ -39,15 +38,15 @@
 	"licenses": [
 		{
 			"type": "MIT",
-			"url": "https://github.com/globexdesigns/doby-grid/blob/master/LICENSE"
+			"url": "https://github.com/ckosmowski/doby-grid/blob/master/LICENSE"
 		}
 	],
 	"main": "Gruntfile.js",
 	"dependencies": {
 		"FileSaver": "^0.10.0",
 		"backbone": "^1.1.2",
-		"jquery": "^3.0.0",
-		"jquery-migrate": "^3.0.1",
+		"jquery": "3.0.0",
+		"jquery-migrate": "3.0.1",
 		"jquery-ui": "^1.12.1",
 		"jquery-ui-bundle": "^1.12.1-migrate",
 		"jquery.event.drag": "^2.2.2",

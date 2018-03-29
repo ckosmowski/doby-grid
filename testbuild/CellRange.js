@@ -3,7 +3,7 @@
 // For all details and documentation:
 // https://github.com/globexdesigns/doby-grid
 
-var CellRange = require('../src/classes/CellRange');
+var CellRange = require("../src/classes/CellRange.js");
 
 describe("CellRange", function () {
 	"use strict";

@@ -28,7 +28,7 @@ module.exports = function (grunt) {
 			},
 			tests: {
 				files: {
-					'tests/CellRange.build.js': ['tests/CellRange.js']
+					'tests/CellRange.build.js': ['testbuild/CellRange.js']
 				}
 			}
 		},
@@ -42,10 +42,9 @@ module.exports = function (grunt) {
 			options: {
 				specs: 'tests/*.js',
 				styles: 'build/latest/<%= pkg.name %>.min.css',
-				vendor: [
-					'node_modules/jquery/dist/jquery.js',
-					'node_modules/jquery-migrate/dist/jquery-migrate.js',					
-					'node_modules/jquery-ui-bundle/jquery-ui.js',
+				vendor: [					
+					'libs/jquery-min.js',
+					'libs/jquery-ui-min.js',
 					'libs/jquery.event.drag.js',
 					'libs/jquery.simulate.js',
 					'node_modules/FileSaver/FileSaver.js',
@@ -141,8 +140,8 @@ module.exports = function (grunt) {
 		'less',
 		'jshint',
 		'jscs',
-		'browserify'
-		//'jasmine'
+		'browserify',
+		'jasmine'
 	]);
 
 	// Builds a new release
@@ -152,7 +151,7 @@ module.exports = function (grunt) {
 		'jshint',
 		'jscs',
 		'browserify:build',
-		'uglify'
-		//'jasmine'
+		'uglify',
+		'jasmine'
 	]);
 };
