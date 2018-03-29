@@ -145,9 +145,9 @@ describe("Grid Options", function () {
 
 			// Get the drag delta from the first cell
 			var dy = firstcell.position().top - lastcell.position().top + lastcell.height();
-
+			console.log(dy);
 			// Simulate a click and drag on the cell ranges
-			firstcell.simulate('drag', {dx: 0, dy: dy});
+			firstcell.simulate('drag', {dy: dy});
 
 			// Expect the first and last cells to be selected
 			expect(grid.selection.length).toBeGreaterThan(0);

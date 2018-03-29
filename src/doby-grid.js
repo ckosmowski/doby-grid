@@ -1047,12 +1047,18 @@ var DobyGrid = function (options) {
 	bindCellRangeSelect = function () {
 		var decorator = new CellRangeDecorator(self, getCellNodeBox),
 			_dragging = null,
-			handleSelector = function () {
-				return $(this).closest('.' + CLS.cellunselectable).length > 0;
+			handleSelector = function (el) {
+				return $(el).closest('.' + CLS.cellunselectable).length > 0;
 			};
-
+		var dd = {};
 		$canvas
-			.on('draginit', {not: handleSelector}, function (event) {
+			/*.on('mousedown', function (jQevent) {
+				if (handleSelector(this)){
+					return;
+				}
+				var event = jQevent.originalEvent;
+				dd = {startX: event.pageX, startY: event.pageY};
+				//dd = {};
 				console.log("draginit");
 				console.log(event);
 				// Prevent the grid from cancelling drag'n'drop by default
@@ -1060,9 +1066,17 @@ var DobyGrid = function (options) {
 
 				// Deselect any text the user may have selected
 				clearTextSelection();
-			})
-			.on('dragstart', {not: handleSelector}, function (event, dd) {
+				return true;
+			})*/
+			.on('dragstart', function (jQevent) {
 				console.log("dragstart");
+				if (handleSelector(this)){
+					return;
+				}
+				var event = jQevent.originalEvent;
+				event.dataTransfer.setData('text/plain', 'This text may be dragged');
+				dd = {startX: event.pageX, startY: event.pageY};
+				clearTextSelection();
 				console.log(event, dd);
 				var cell = getCellFromEvent(event);
 				if (!cell) return;
@@ -1087,18 +1101,20 @@ var DobyGrid = function (options) {
 					end: start,
 					start: start
 				};
-
-				return decorator.show(new CellRange({fromRow: start.row, fromCell: start.cell}, self));
 			})
-			.on('drag', {not: handleSelector}, function (event, dd) {
+			.on('drag', function (jQevent) {
 				console.log("drag");
+				if (handleSelector(this)){
+					return;
+				}
+				var event = jQevent.originalEvent;
 				console.log(event, dd);
 				if (!_dragging) return;
 
 				event.stopImmediatePropagation();
 
 				var $closestPane = $(this).closest($panes),
-					xPos = event.pageX - $(this).offset().left,
+					xPos = dragPageX - $(this).offset().left,
 					xOffset = $closestPane.position().left;
 
 				// If started dragging in left pane but ending in right, need to account
@@ -1109,7 +1125,7 @@ var DobyGrid = function (options) {
 
 				var end = getCellFromPoint(
 					xPos + xOffset,
-					event.pageY - $(this).offset().top
+					dragPageY - $(this).offset().top
 				);
 
 				if (!self.canCellBeSelected(end.row, end.cell)) return;
@@ -1122,7 +1138,11 @@ var DobyGrid = function (options) {
 					setActiveCellInternal(getCellNode(end.row, end.cell), false);
 				}
 			})
-			.on('dragend', {not: handleSelector}, function (event, dd) {
+			.on('dragend', function (jQevent) {
+				if (handleSelector(this)){
+					return;
+				}
+				var event = jQevent.originalEvent;
 				console.log("dragend");
 				console.log(event, dd);
 				if (!_dragging) return;
@@ -7882,7 +7902,7 @@ var DobyGrid = function (options) {
 		if (isCellSelected(row, cell)) cellCss.push(self.options.selectedClass);
 		if (column.selectable === false) cellCss.push(CLS.cellunselectable);
 
-		result.push('<div class="' + cellCss.join(" ") + '">');
+		result.push('<div draggable="true" class="' + cellCss.join(" ") + '">');
 
 		// If this is a cached, postprocessed row -- use the cache
 		if (m.cache && m.postprocess && cache.postprocess[item[self.options.idProperty]] && cache.postprocess[item[self.options.idProperty]][column.id]) {
