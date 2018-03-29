@@ -292,7 +292,9 @@ var DobyGrid = function (options) {
 		viewportHasHScroll,
 		viewportHasVScroll,
 		viewportW,
-		vScrollDir = 1;
+		vScrollDir = 1,
+		dragPageX,
+		dragPageY;
 
 	// Default Grid Options
 
@@ -451,6 +453,12 @@ var DobyGrid = function (options) {
 
 		// Insert an 'addRow' row
 		if (self.options.addRow) insertAddRow();
+
+		$(document).on("dragover", function(evt){
+			var event = evt.originalEvent;
+			dragPageX = event.pageX;
+			dragPageY = event.pageY;
+		});
 
 		// Create the grid
 		createGrid();
@@ -9531,7 +9539,6 @@ var DobyGrid = function (options) {
 			$('<div draggable="true" class="' + CLS.handle + '"><span></span></div>')
 				.appendTo(columnEl)
 				.on('dragstart', function (jQevent) {
-					console.log('dragstart');
 					var event = jQevent.originalEvent;
 					event.dataTransfer.setData('text/plain', 'This text may be dragged');
 					pageX = event.pageX;
@@ -9544,15 +9551,12 @@ var DobyGrid = function (options) {
 					prepareLeeway(i, pageX);
 				})
 				.on('drag', function (jQevent) {
-					console.log("drag");
 					var event = jQevent.originalEvent;
-					console.log(event);
-					console.log(jQevent);
-					if (event.pageX <= 0) {
+					if (dragPageX <= 0) {
 						return;
 					}
-					var delta = Math.min(maxPageX, Math.max(minPageX, event.pageX)) - pageX;
-					console.log("VALUES", maxPageX, minPageX, event.pageX, pageX, delta);
+					var delta = Math.min(maxPageX, Math.max(minPageX, dragPageX)) - pageX;
+					console.log("VALUES", maxPageX, minPageX, dragPageX, pageX, delta);
 					// Sets the new column widths
 					resizeColumn(i, delta);
 
@@ -9560,7 +9564,6 @@ var DobyGrid = function (options) {
 					applyHeaderAndColumnWidths();
 				})
 				.on('dragend', function (jQevent) {
-					console.log("dragend");
 					var event = jQevent.originalEvent;
 					// This timeout is a hacky solution to prevent the 'click' event for
 					// column sorting from firing when resizing the handle on top of the

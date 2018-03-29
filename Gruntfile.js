@@ -157,6 +157,7 @@ module.exports = function (grunt) {
 
 	// Builds a new release
 	grunt.registerTask('forcebuild', [
+		'less',
 		'browserify:build',
 		'uglify'
 	]);
