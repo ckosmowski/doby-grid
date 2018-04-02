@@ -13,7 +13,7 @@ define(['faker'], function (Faker) {
 				id: i,
 				data: {
 					id: i,
-					text: Faker.lorem.words(120).join(' '),
+					text: Faker.lorem.words(120),
 					category: _.sample(['A', 'B', 'C', 'D'])
 				},
 				height: _.random(20, 70)
