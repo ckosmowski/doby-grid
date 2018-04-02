@@ -22,10 +22,10 @@ define(['faker'], function (Faker) {
 				id: i,
 				data: {
 					id: i,
-					name: Faker.Name.findName(),
+					name: Faker.name.findName(),
 					age: "100 years",
-					city: Faker.Address.city(),
-					country: Faker.Address.ukCountry()
+					city: Faker.address.city(),
+					country: Faker.address.ukCountry()
 				}
 			};
 

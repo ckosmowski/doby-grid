@@ -12,9 +12,9 @@ define(['faker'], function (Faker) {
 				id: i,
 				data: {
 					id: i,
-					name: Faker.Name.findName(),
+					name: Faker.name.findName(),
 					age: _.sample([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
-					city: Faker.Address.city(),
+					city: Faker.address.city(),
 					rsvp: _.random(0, 1)
 				}
 			});

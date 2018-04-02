@@ -47,8 +47,8 @@ define(['backbone', 'faker'], function (Backbone, Faker) {
 		for (var i = 0; i < 1000; i++) {
 			grid.options.data.add({
 				id: i,
-				name: Faker.Name.findName(),
-				city: Faker.Address.city(),
+				name: Faker.name.findName(),
+				city: Faker.address.city(),
 				rating: _.sample([1, 2, 3, 4, 5, 6, 7, 8, 9])
 			});
 		}

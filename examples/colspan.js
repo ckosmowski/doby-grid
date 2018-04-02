@@ -12,7 +12,7 @@ define(['faker'], function (Faker) {
 				id: 'id_' + i,
 				data: {
 					id: 'id_' + i,
-					name: Faker.Name.findName(),
+					name: Faker.name.findName(),
 					age: _.sample(_.range(1, 100))
 				},
 				columns: {
