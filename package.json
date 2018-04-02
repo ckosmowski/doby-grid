@@ -45,11 +45,11 @@
 	"dependencies": {
 		"FileSaver": "^0.10.0",
 		"backbone": "^1.1.2",
+		"drag-mock": "^1.4.0",
 		"jquery": "3.0.0",
 		"jquery-migrate": "3.0.1",
 		"jquery-ui": "^1.12.1",
 		"jquery-ui-bundle": "^1.12.1-migrate",
-		"jquery.event.drag": "^2.2.2",
 		"underscore": "^1.7.0"
 	}
 }

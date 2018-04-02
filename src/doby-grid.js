@@ -454,7 +454,7 @@ var DobyGrid = function (options) {
 		// Insert an 'addRow' row
 		if (self.options.addRow) insertAddRow();
 
-		$(document).on("dragover", function(evt){
+		$(document).on("dragover", function (evt) {
 			var event = evt.originalEvent;
 			dragPageX = event.pageX;
 			dragPageY = event.pageY;
@@ -1069,7 +1069,6 @@ var DobyGrid = function (options) {
 				return true;
 			})*/
 			.on('dragstart', function (jQevent) {
-				console.log("dragstart");
 				if (handleSelector(this)){
 					return;
 				}
@@ -1077,7 +1076,6 @@ var DobyGrid = function (options) {
 				event.dataTransfer.setData('text/plain', 'This text may be dragged');
 				dd = {startX: event.pageX, startY: event.pageY};
 				clearTextSelection();
-				console.log(event, dd);
 				var cell = getCellFromEvent(event);
 				if (!cell) return;
 
@@ -1103,12 +1101,10 @@ var DobyGrid = function (options) {
 				};
 			})
 			.on('drag', function (jQevent) {
-				console.log("drag");
 				if (handleSelector(this)){
 					return;
 				}
 				var event = jQevent.originalEvent;
-				console.log(event, dd);
 				if (!_dragging) return;
 
 				event.stopImmediatePropagation();
@@ -1143,8 +1139,6 @@ var DobyGrid = function (options) {
 					return;
 				}
 				var event = jQevent.originalEvent;
-				console.log("dragend");
-				console.log(event, dd);
 				if (!_dragging) return;
 				_dragging = false;
 
@@ -1183,11 +1177,17 @@ var DobyGrid = function (options) {
 	bindRowResize = function () {
 		// This cannot be assigned to the $viewport element because the two drag
 		// event binding conflict with each other.
+		var dd = {};
 		$canvas
-			.on('dragstart', function (event, dd) {
+			.on('dragstart', function (jQevent) {
+				var event = jQevent.originalEvent;
 				if (!$(event.target).hasClass(CLS.rowhandle)) return;
 				event.stopImmediatePropagation();
 
+				dd = {
+					startX: event.pageX,
+					startY: event.pageY
+				};
 				dd._row = getRowFromNode($(event.target).parent()[0]);
 				dd._rowNode = cache.nodes[dd._row].rowNode;
 
@@ -1203,9 +1203,10 @@ var DobyGrid = function (options) {
 				$(dd._rowsBelow).wrapAll('<div class="' + CLS.rowdragcontainer + '"></div>');
 				dd._container = $(dd._rowsBelow).parent();
 			})
-			.on('drag', function (event, dd) {
+			.on('drag', function () {
 				if (dd._row === undefined) return;
 
+				dd.deltaY = dragPageY - dd.startY;
 				// Resize current row
 				var node = dd._rowNode,
 					pos = cache.rowPositions[dd._row],
@@ -1222,7 +1223,7 @@ var DobyGrid = function (options) {
 				// Drag and container of rows below
 				dd._container.css({marginTop: (dd._height - height) + 'px'});
 			})
-			.on('dragend', function (event, dd) {
+			.on('dragend', function () {
 				if (dd._row === undefined) return;
 
 				// Unwrap rows below
@@ -9441,7 +9442,6 @@ var DobyGrid = function (options) {
 			placeholder: CLS.placeholder + " " + CLS.headercolumn,
 			tolerance: "intersection",
 			start: function (e, ui) {
-				
 				ui.placeholder.width(ui.helper.outerWidth() - headerColumnWidthDiff);
 				$(ui.helper).addClass(CLS.headercolumnactive);
 			},
@@ -9570,21 +9570,18 @@ var DobyGrid = function (options) {
 					// Ensures the leeway has another room to move around
 					prepareLeeway(i, pageX);
 				})
-				.on('drag', function (jQevent) {
-					var event = jQevent.originalEvent;
+				.on('drag', function () {
 					if (dragPageX <= 0) {
 						return;
 					}
 					var delta = Math.min(maxPageX, Math.max(minPageX, dragPageX)) - pageX;
-					console.log("VALUES", maxPageX, minPageX, dragPageX, pageX, delta);
 					// Sets the new column widths
 					resizeColumn(i, delta);
 
 					// Save changes
 					applyHeaderAndColumnWidths();
 				})
-				.on('dragend', function (jQevent) {
-					var event = jQevent.originalEvent;
+				.on('dragend', function () {
 					// This timeout is a hacky solution to prevent the 'click' event for
 					// column sorting from firing when resizing the handle on top of the
 					// header cell. FIXME: There's got to be a better way!

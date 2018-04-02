@@ -45,8 +45,8 @@ module.exports = function (grunt) {
 				vendor: [					
 					'libs/jquery-min.js',
 					'libs/jquery-ui-min.js',
-					'libs/jquery.event.drag.js',
 					'libs/jquery.simulate.js',
+					'node_modules/drag-mock/dist/drag-mock.js',
 					'node_modules/FileSaver/FileSaver.js',
 					'node_modules/underscore/underscore.js',
                     'node_modules/backbone/backbone.js',

@@ -1304,7 +1304,21 @@ describe("Column Options", function () {
 				handle = $(this).find('.doby-grid-resizable-handle');
 
 				// Start dragging
-				handle.simulate('drag', {dx: 500, dy: 0});
+
+				// Simulate a click and drag on the cell ranges
+				var sourceX = handle.offset().left + handle.width() / 2,
+					targetX = sourceX + 500,
+					sourceY = handle.offset().top + handle.width() / 2,
+					targetY = sourceY,
+					sourcePoint = {pageX: sourceX, pageY: sourceY},
+					targetPoint = {pageX: targetX, pageY: targetY};
+
+				dragMock
+					.dragOver(document, targetPoint)
+					.dragStart(handle[0], {
+						dragstart: sourcePoint, 
+						drag: targetPoint
+					}).drop(handle[0], targetPoint);
 
 				// Ensure widths didn't get bigger than allowed
 				if (i === 0) {
@@ -1501,7 +1515,24 @@ describe("Column Options", function () {
 
 			// Resize column
 			grid.$el.find('.doby-grid-header-column').each(function () {
-				$(this).find('.doby-grid-resizable-handle').simulate('drag', {dx: -100});
+
+				var handle = $(this).find('.doby-grid-resizable-handle');
+				// Simulate a click and drag on the cell ranges
+				var sourceX = handle.offset().left + handle.width() / 2,
+					targetX = sourceX - 50,
+					sourceY = handle.offset().top + handle.width() / 2,
+					targetY = sourceY,
+					sourcePoint = {pageX: sourceX, pageY: sourceY},
+					targetPoint = {pageX: targetX, pageY: targetY};
+
+				dragMock
+					.dragOver(document, targetPoint)
+					.dragStart(handle[0], {
+						dragstart: sourcePoint, 
+						drag: targetPoint
+					}).drop(handle[0], targetPoint);
+
+				//$(this).find('.doby-grid-resizable-handle').simulate('drag', {dx: -100});
 			});
 
 			// Expect the value to have changed
