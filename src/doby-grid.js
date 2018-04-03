@@ -1048,32 +1048,18 @@ var DobyGrid = function (options) {
 		var decorator = new CellRangeDecorator(self, getCellNodeBox),
 			_dragging = null,
 			handleSelector = function (el) {
-				return $(el).closest('.' + CLS.cellunselectable).length > 0;
+				return $(el).closest('.' + CLS.cellunselectable).length > 0 || $(el).is("." + CLS.rowhandle);
 			};
 		var dd = {};
 		$canvas
-			/*.on('mousedown', function (jQevent) {
-				if (handleSelector(this)){
-					return;
-				}
-				var event = jQevent.originalEvent;
-				dd = {startX: event.pageX, startY: event.pageY};
-				//dd = {};
-				console.log("draginit");
-				console.log(event);
-				// Prevent the grid from cancelling drag'n'drop by default
-				event.stopImmediatePropagation();
-
-				// Deselect any text the user may have selected
-				clearTextSelection();
-				return true;
-			})*/
 			.on('dragstart', function (jQevent) {
-				if (handleSelector(this)){
+				var event = jQevent.originalEvent;
+				if (handleSelector(event.target)){
 					return;
 				}
-				var event = jQevent.originalEvent;
 				event.dataTransfer.setData('text/plain', 'This text may be dragged');
+				event.dataTransfer.dropEffect = "none";
+				event.dataTransfer.effectAllowed = "none";
 				dd = {startX: event.pageX, startY: event.pageY};
 				clearTextSelection();
 				var cell = getCellFromEvent(event);
@@ -1101,10 +1087,10 @@ var DobyGrid = function (options) {
 				};
 			})
 			.on('drag', function (jQevent) {
-				if (handleSelector(this)){
+				var event = jQevent.originalEvent;
+				if (handleSelector(event.target)){
 					return;
 				}
-				var event = jQevent.originalEvent;
 				if (!_dragging) return;
 
 				event.stopImmediatePropagation();
@@ -1135,10 +1121,10 @@ var DobyGrid = function (options) {
 				}
 			})
 			.on('dragend', function (jQevent) {
-				if (handleSelector(this)){
+				var event = jQevent.originalEvent;
+				if (handleSelector(event.target)){
 					return;
 				}
-				var event = jQevent.originalEvent;
 				if (!_dragging) return;
 				_dragging = false;
 
@@ -1181,6 +1167,11 @@ var DobyGrid = function (options) {
 		$canvas
 			.on('dragstart', function (jQevent) {
 				var event = jQevent.originalEvent;
+
+				event.dataTransfer.setData('text/plain', 'This text may be dragged');
+				event.dataTransfer.dropEffect = "none";
+				event.dataTransfer.effectAllowed = "none";
+
 				if (!$(event.target).hasClass(CLS.rowhandle)) return;
 				event.stopImmediatePropagation();
 
@@ -1203,8 +1194,9 @@ var DobyGrid = function (options) {
 				$(dd._rowsBelow).wrapAll('<div class="' + CLS.rowdragcontainer + '"></div>');
 				dd._container = $(dd._rowsBelow).parent();
 			})
-			.on('drag', function () {
-				if (dd._row === undefined) return;
+			.on('drag', function (jQevent) {
+				var event = jQevent.originalEvent;
+				if (!$(event.target).hasClass(CLS.rowhandle) || dd._row === undefined) return;
 
 				dd.deltaY = dragPageY - dd.startY;
 				// Resize current row
@@ -1223,8 +1215,9 @@ var DobyGrid = function (options) {
 				// Drag and container of rows below
 				dd._container.css({marginTop: (dd._height - height) + 'px'});
 			})
-			.on('dragend', function () {
-				if (dd._row === undefined) return;
+			.on('dragend', function (jQevent) {
+				var event = jQevent.originalEvent;
+				if (!$(event.target).hasClass(CLS.rowhandle) || dd._row === undefined) return;
 
 				// Unwrap rows below
 				$(dd._rowsBelow).unwrap();
@@ -8139,7 +8132,7 @@ var DobyGrid = function (options) {
 
 		// Add row resizing handle
 		if (self.options.resizableRows && d.resizable !== false) {
-			endRowHtml.push('<div class="');
+			endRowHtml.push('<div draggable="true" class="');
 			endRowHtml.push(CLS.rowhandle);
 			endRowHtml.push('"></div>');
 		}
@@ -9561,6 +9554,8 @@ var DobyGrid = function (options) {
 				.on('dragstart', function (jQevent) {
 					var event = jQevent.originalEvent;
 					event.dataTransfer.setData('text/plain', 'This text may be dragged');
+					event.dataTransfer.dropEffect = "none";
+					event.dataTransfer.effectAllowed = "none";
 					pageX = event.pageX;
 					$(this).parent().addClass(CLS.headercolumndrag);
 
