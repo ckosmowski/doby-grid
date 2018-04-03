@@ -48,6 +48,7 @@ CellRangeDecorator.prototype.show = function (range) {
 		borderTop = parseInt(this.$el.css('borderTopWidth'), 10),
 		$rightpane = this.grid.$el.find('.' + CLS.pane).eq(1),
 		topOffset = this.grid.$el.find('.' + CLS.pane + ":first ." + CLS.viewport).first().position().top,
+		$canvas = this.grid.$el.find('.' + CLS.canvas),
 		frozenCol = this.grid.options.frozenColumns,
 		leftOffset = frozenCol >= 0 && range.fromCell > frozenCol ? $rightpane.position().left : 0,
 		widthOffset = frozenCol >= 0 && range.toCell > frozenCol && range.fromCell <= frozenCol ? $rightpane.position().left : 0;
@@ -65,10 +66,10 @@ CellRangeDecorator.prototype.show = function (range) {
 
 	if (from && to) {
 		var width = to.right - from.left - borderLeft - borderRight;
-
+		var cpos = $canvas.position();
 		this.$el.css({
-			top: from.top + topOffset,
-			left: from.left + leftOffset,
+			top: from.top + topOffset + cpos.top,
+			left: from.left + leftOffset + cpos.left,
 			height: to.bottom - from.top - borderBottom - borderTop,
 			width: width + widthOffset
 		});
